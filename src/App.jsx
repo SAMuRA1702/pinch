@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useParams } from 'react-router-dom';
-import { Instagram, Send } from 'lucide-react'; // Send used for Telegram icon
+import { Instagram, Send, X, Phone, Mail, ChevronRight } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
-// --- DATA PERSISTENCE (Simulation) ---
+// --- DATA PERSISTENCE ---
 const STORAGE_KEY = 'pinch_drop_data';
 
 const initialData = {
   header: {
-    brand: '▲ PINCH & DROP •',
+    brand: 'PINCH & DROP',
     slogan: 'Насыщенные яркие вкусы, тщательно подобранные натуральные ингредиенты и оригинальная рецептура'
   },
   categories: [
@@ -29,49 +30,38 @@ const initialData = {
       items: [
         { id: 3, name: 'Банан', code: '5045174', price: '1200', image: '' }
       ]
-    },
-    {
-      id: 'toppings',
-      title: 'Топпинги',
-      meta: 'пластик | 1 л | 24 месяца',
-      description: 'Идеальное дополнение к десертам и напиткам.',
-      items: []
-    },
-    {
-      id: 'bases',
-      title: 'Основы',
-      meta: 'стекло | 1 л | 24 месяца',
-      description: 'Универсальные концентраты для ваших коктейлей.',
-      items: []
     }
   ],
   contacts: {
     phone: '+7 (495) 431-90-60',
     email: 'export@complexbar.com',
-    instagram: '',
-    telegram: ''
+    instagram: 'https://instagram.com/pinch_drop',
+    telegram: 'https://t.me/pinch_drop'
   },
   requests: []
 };
 
+// --- ANIMATION VARIANTS ---
+const fadeInUp = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.6, ease: [0.6, -0.05, 0.01, 0.99] }
+};
+
+const staggerContainer = {
+  animate: {
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+};
+
 // --- COMPONENTS ---
 
-// 1. PUBLIC LANDING PAGE
 const Landing = ({ data, setData }) => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [callbackForm, setCallbackForm] = useState({ name: '', phone: '' });
   const [isSent, setIsSent] = useState(false);
-
-  useEffect(() => {
-    const hasToppings = data.categories.some(c => c.id === 'toppings');
-    const hasBases = data.categories.some(c => c.id === 'bases');
-    if (!hasToppings || !hasBases) {
-      const updatedCats = [...data.categories];
-      if (!hasToppings) updatedCats.push(initialData.categories[2]);
-      if (!hasBases) updatedCats.push(initialData.categories[3]);
-      setData({ ...data, categories: updatedCats });
-    }
-  }, []);
 
   const handleCallback = (e) => {
     e.preventDefault();
@@ -93,12 +83,22 @@ const Landing = ({ data, setData }) => {
     <div className="app">
       <header>
         <div className="container">
-          <div className="logo-section">
-            <div className="brand-name">{data.header.brand}</div>
-          </div>
-          <div className="slogan-box">
+          <motion.div
+            className="logo-section"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 1, ease: "easeOut" }}
+          >
+            <h1 className="brand-name">{data.header.brand}</h1>
+          </motion.div>
+          <motion.div
+            className="slogan-box"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.8 }}
+          >
             <p className="slogan-text">{data.header.slogan}</p>
-          </div>
+          </motion.div>
         </div>
       </header>
 
@@ -106,68 +106,115 @@ const Landing = ({ data, setData }) => {
         {data.categories.map((cat) => (
           <section key={cat.id}>
             <div className="category-block">
-              <div className="category-header">
+              <motion.div
+                className="category-header"
+                initial={{ opacity: 0, x: -20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+              >
                 <h2 className="category-title">{cat.title}</h2>
                 <div className="category-meta">{cat.meta}</div>
-              </div>
-              <p style={{ marginBottom: '30px', color: '#555', fontSize: '14px', maxWidth: '800px' }}>{cat.description}</p>
-              {cat.items.length > 0 ? (
-                <div className="product-grid">
-                  {cat.items.map((item) => (
-                    <div key={item.id} className="product-item" onClick={() => setSelectedProduct({ ...item, categoryMeta: cat.meta })}>
+              </motion.div>
+
+              <p className="category-description">{cat.description}</p>
+
+              <motion.div
+                className="product-grid"
+                variants={staggerContainer}
+                initial="initial"
+                whileInView="animate"
+                viewport={{ once: true, margin: "-100px" }}
+              >
+                {cat.items.length > 0 ? (
+                  cat.items.map((item) => (
+                    <motion.div
+                      key={item.id}
+                      className="product-item"
+                      variants={fadeInUp}
+                      onClick={() => setSelectedProduct({ ...item, categoryMeta: cat.meta })}
+                    >
                       <div className="product-placeholder">
                         {item.image && <img src={item.image} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />}
                       </div>
                       <div className="product-name">{item.name}</div>
                       <div className="product-code">{item.code}</div>
-                      {item.price && <div style={{ fontSize: '12px', fontWeight: 'bold', marginTop: '5px' }}>{item.price} SUM</div>}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div style={{ opacity: 0.3, fontSize: '12px' }}>Товары в данной категории пока отсутствуют.</div>
-              )}
+                      {item.price && <div className="product-price">{item.price} SUM</div>}
+                    </motion.div>
+                  ))
+                ) : (
+                  <div style={{ opacity: 0.5, gridColumn: '1/-1' }}>Товары в данной категории пока отсутствуют.</div>
+                )}
+              </motion.div>
             </div>
           </section>
         ))}
       </main>
 
       {/* Product Detail Modal */}
-      {selectedProduct && (
-        <div className="modal-overlay" onClick={() => setSelectedProduct(null)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <button className="modal-close" onClick={() => setSelectedProduct(null)}>×</button>
-            <div style={{ flex: '1', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9f9f9', borderRadius: '4px', minHeight: '300px' }}>
-              {selectedProduct.image ? (
-                <img src={selectedProduct.image} alt={selectedProduct.name} style={{ maxWidth: '100%', maxHeight: '400px', objectFit: 'contain', display: 'block' }} />
-              ) : (
-                <div className="product-placeholder" style={{ transform: 'scale(2)', marginBottom: 0 }}></div>
-              )}
-            </div>
-            <div style={{ flex: '1' }}>
-              <div style={{ fontSize: '12px', color: '#888', textTransform: 'uppercase', marginBottom: '10px' }}>{selectedProduct.categoryMeta}</div>
-              <h2 style={{ border: 'none', padding: 0, marginBottom: '20px', fontSize: '28px' }}>{selectedProduct.name}</h2>
-              <div style={{ fontSize: '14px', color: '#888', marginBottom: '20px' }}>Артикул: {selectedProduct.code}</div>
-              {selectedProduct.price && (
-                <div style={{ fontSize: '24px', fontWeight: '800', marginBottom: '30px' }}>{selectedProduct.price} SUM</div>
-              )}
-              {selectedProduct.description && (
-                <div>
-                  <h4 style={{ textTransform: 'uppercase', fontSize: '10px', marginBottom: '10px', letterSpacing: '1px' }}>Описание:</h4>
-                  <p style={{ fontSize: '14px', color: '#555', lineHeight: '1.6' }}>{selectedProduct.description}</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {selectedProduct && (
+          <motion.div
+            className="modal-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setSelectedProduct(null)}
+          >
+            <motion.div
+              className="modal-content"
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <button className="modal-close" onClick={() => setSelectedProduct(null)}><X size={32} /></button>
+
+              <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '300px' }}>
+                {selectedProduct.image ? (
+                  <img src={selectedProduct.image} alt={selectedProduct.name} style={{ maxWidth: '100%', maxHeight: '400px', objectFit: 'contain' }} />
+                ) : (
+                  <div style={{ fontSize: '100px', opacity: 0.05 }}>▲</div>
+                )}
+              </div>
+
+              <div>
+                <div style={{ color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '2px', fontSize: '12px', marginBottom: '16px' }}>{selectedProduct.categoryMeta}</div>
+                <h2 style={{ fontFamily: 'Playfair Display, serif', fontSize: '42px', marginBottom: '20px', border: 'none', padding: 0 }}>{selectedProduct.name}</h2>
+                <div style={{ color: 'var(--text-secondary)', marginBottom: '32px' }}>Артикул: {selectedProduct.code}</div>
+
+                {selectedProduct.price && (
+                  <div style={{ fontSize: '32px', fontWeight: '800', color: 'var(--accent)', marginBottom: '40px' }}>{selectedProduct.price} SUM</div>
+                )}
+
+                {selectedProduct.description && (
+                  <div>
+                    <h4 style={{ textTransform: 'uppercase', fontSize: '12px', marginBottom: '12px', color: 'var(--text-secondary)' }}>О товаре:</h4>
+                    <p style={{ color: 'var(--text-secondary)', lineHeight: '1.8' }}>{selectedProduct.description}</p>
+                  </div>
+                )}
+
+                <button
+                  className="btn-main"
+                  style={{ width: '100%', marginTop: '40px' }}
+                  onClick={() => {
+                    setSelectedProduct(null);
+                    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+                  }}
+                >
+                  Заказать обратный звонок
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <footer>
         <div className="container">
           <div className="footer-content">
             <div className="footer-info">
-              <h3 style={{ fontSize: '18px', marginBottom: '20px', textTransform: 'uppercase' }}>Заказать обратный звонок</h3>
-              <form onSubmit={handleCallback} style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+              <h3 style={{ fontSize: '24px', marginBottom: '32px', fontFamily: 'Playfair Display, serif' }}>Связаться с нами</h3>
+              <form onSubmit={handleCallback}>
                 <input
                   type="text"
                   placeholder="Ваше имя"
@@ -175,7 +222,6 @@ const Landing = ({ data, setData }) => {
                   required
                   value={callbackForm.name}
                   onChange={e => setCallbackForm({ ...callbackForm, name: e.target.value })}
-                  style={{ border: '1px solid #ddd', padding: '10px' }}
                 />
                 <input
                   type="tel"
@@ -184,28 +230,30 @@ const Landing = ({ data, setData }) => {
                   required
                   value={callbackForm.phone}
                   onChange={e => setCallbackForm({ ...callbackForm, phone: e.target.value })}
-                  style={{ border: '1px solid #ddd', padding: '10px' }}
                 />
-                <button type="submit" className="btn-main" style={{ background: 'black', color: 'white', border: 'none', padding: '12px', cursor: 'pointer', fontWeight: '800' }}>
-                  ОТПРАВИТЬ
-                </button>
-                {isSent && <div style={{ color: 'green', fontSize: '12px', fontWeight: 'bold', marginTop: '5px' }}>Спасибо! Мы свяжемся с вами.</div>}
+                <button type="submit" className="btn-main">Отправить запрос</button>
+                {isSent && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ color: 'var(--accent)', marginTop: '15px' }}>Спасибо! Мы скоро свяжемся с вами.</motion.div>}
               </form>
             </div>
+
             <div className="footer-contacts">
-              <h3 style={{ fontSize: '18px', marginBottom: '20px', textTransform: 'uppercase' }}>Связаться с нами</h3>
+              <h3 style={{ fontSize: '24px', marginBottom: '32px', fontFamily: 'Playfair Display, serif' }}>Контакты</h3>
               <div className="contact-links">
-                <a href={`tel:${data.contacts.phone}`} style={{ fontSize: '18px', marginBottom: '5px' }}>{data.contacts.phone}</a>
-                <a href={`mailto:${data.contacts.email}`}>{data.contacts.email}</a>
+                <a href={`tel:${data.contacts.phone}`} style={{ fontSize: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <Phone size={20} color="var(--accent)" /> {data.contacts.phone}
+                </a>
+                <a href={`mailto:${data.contacts.email}`} style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-secondary)' }}>
+                  <Mail size={18} color="var(--accent)" /> {data.contacts.email}
+                </a>
 
                 <div className="social-icons-row">
                   {data.contacts.instagram && (
-                    <a href={data.contacts.instagram} target="_blank" rel="noreferrer" className="social-icon-link instagram">
+                    <a href={data.contacts.instagram} target="_blank" rel="noreferrer" className="social-icon-link">
                       <Instagram size={20} />
                     </a>
                   )}
                   {data.contacts.telegram && (
-                    <a href={data.contacts.telegram} target="_blank" rel="noreferrer" className="social-icon-link telegram">
+                    <a href={data.contacts.telegram} target="_blank" rel="noreferrer" className="social-icon-link">
                       <Send size={20} />
                     </a>
                   )}
@@ -213,8 +261,9 @@ const Landing = ({ data, setData }) => {
               </div>
             </div>
           </div>
-          <div style={{ marginTop: '60px', opacity: 0.5, fontSize: '11px', textAlign: 'center' }}>
-            © {new Date().getFullYear()} PINCH & DROP. Все права защищены.
+
+          <div style={{ marginTop: '80px', paddingTop: '40px', borderTop: '1px solid var(--border-color)', opacity: 0.3, fontSize: '12px', textAlign: 'center' }}>
+            © {new Date().getFullYear()} PINCH & DROP • ALL RIGHTS RESERVED
           </div>
         </div>
       </footer>
@@ -222,23 +271,25 @@ const Landing = ({ data, setData }) => {
   );
 };
 
-// 2. ADMIN PANEL
+// --- ADMIN PANEL ---
 const Admin = ({ data, setData }) => {
   return (
     <div className="admin-layout">
       <div className="admin-sidebar">
-        <h1>PINCH ADMIN</h1>
+        <div style={{ padding: '0 40px', marginBottom: '40px' }}>
+          <h1 style={{ fontFamily: 'Playfair Display, serif', fontSize: '20px', letterSpacing: '2px' }}>PINCH ADMIN</h1>
+        </div>
         <nav>
-          <Link to="/admin" className="admin-nav-item">Общее</Link>
+          <Link to="/admin" className="admin-nav-item">Общие настройки</Link>
           <Link to="/admin/requests" className="admin-nav-item">Заявки ({data.requests?.length || 0})</Link>
           <Link to="/admin/contacts" className="admin-nav-item">Контакты</Link>
-          <div style={{ marginTop: '20px', marginBottom: '10px', fontSize: '10px', color: '#666', borderBottom: '1px solid #222' }}>КАТЕГОРИИ</div>
+          <div style={{ padding: '20px 40px 10px', fontSize: '10px', color: '#444', textTransform: 'uppercase', letterSpacing: '2px' }}>Категории</div>
           {data.categories.map(cat => (
             <Link key={cat.id} to={`/admin/category/${cat.id}`} className="admin-nav-item">
               {cat.title}
             </Link>
           ))}
-          <Link to="/" className="admin-nav-item" style={{ marginTop: '40px', color: '#ff7e45' }}>← На сайт</Link>
+          <Link to="/" className="admin-nav-item" style={{ marginTop: 'auto', color: 'var(--accent)' }}>← На сайт</Link>
         </nav>
       </div>
 
@@ -262,7 +313,7 @@ const AdminGeneral = ({ data, setData }) => {
   };
   return (
     <div className="admin-card">
-      <h2 style={{ border: 'none', padding: 0 }}>Общие настройки</h2>
+      <h2 style={{ border: 'none', padding: 0, marginBottom: '32px', color: 'var(--accent)' }}>Общие настройки</h2>
       <div className="form-group">
         <label>Название бренда</label>
         <input className="form-input" value={form.brand} onChange={e => setForm({ ...form, brand: e.target.value })} />
@@ -271,25 +322,19 @@ const AdminGeneral = ({ data, setData }) => {
         <label>Слоган</label>
         <textarea className="form-input" rows="3" value={form.slogan} onChange={e => setForm({ ...form, slogan: e.target.value })} />
       </div>
-      <button className="btn-save" onClick={save}>Сохранить изменения</button>
+      <button className="btn-main" onClick={save}>Сохранить</button>
     </div>
   );
 };
 
 const AdminRequests = ({ data, setData }) => {
-  const clearRequests = () => {
-    if (window.confirm('Очистить все заявки?')) setData({ ...data, requests: [] });
-  };
   const deleteRequest = (id) => {
     setData({ ...data, requests: data.requests.filter(r => r.id !== id) });
   };
   return (
     <div className="admin-card">
-      <div className="admin-header">
-        <h2 style={{ border: 'none', padding: 0 }}>Заявки на обратный звонок</h2>
-        <button className="action-btn delete-btn" onClick={clearRequests}>Очистить список</button>
-      </div>
-      <div className="admin-table-wrapper">
+      <h2 style={{ border: 'none', padding: 0, marginBottom: '32px', color: 'var(--accent)' }}>Заявки</h2>
+      <div style={{ overflowX: 'auto' }}>
         <table className="admin-table">
           <thead>
             <tr>
@@ -302,18 +347,18 @@ const AdminRequests = ({ data, setData }) => {
           <tbody>
             {(data.requests || []).map(req => (
               <tr key={req.id}>
-                <td style={{ fontSize: '12px' }}>{req.date}</td>
-                <td style={{ fontWeight: 'bold' }}>{req.name}</td>
+                <td style={{ color: '#666', fontSize: '12px' }}>{req.date}</td>
+                <td style={{ fontWeight: '600' }}>{req.name}</td>
                 <td>{req.phone}</td>
                 <td>
-                  <button className="action-btn delete-btn" onClick={() => deleteRequest(req.id)}>Удалить</button>
+                  <button className="action-btn" style={{ color: '#ff4444', borderColor: 'rgba(255,68,68,0.2)' }} onClick={() => deleteRequest(req.id)}>Удалить</button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
         {(!data.requests || data.requests.length === 0) && (
-          <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>Заявок пока нет</div>
+          <div style={{ textAlign: 'center', padding: '60px', color: '#444' }}>Заявок пока нет</div>
         )}
       </div>
     </div>
@@ -321,21 +366,14 @@ const AdminRequests = ({ data, setData }) => {
 };
 
 const AdminContacts = ({ data, setData }) => {
-  const [form, setForm] = useState({
-    phone: data.contacts.phone || '',
-    email: data.contacts.email || '',
-    instagram: data.contacts.instagram || '',
-    telegram: data.contacts.telegram || ''
-  });
-
+  const [form, setForm] = useState(data.contacts);
   const save = () => {
     setData({ ...data, contacts: form });
     alert('Контакты обновлены');
   };
-
   return (
     <div className="admin-card">
-      <h2 style={{ border: 'none', padding: 0 }}>Редактирование контактов</h2>
+      <h2 style={{ border: 'none', padding: 0, marginBottom: '32px', color: 'var(--accent)' }}>Контакты</h2>
       <div className="form-group">
         <label>Телефон</label>
         <input className="form-input" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
@@ -345,14 +383,14 @@ const AdminContacts = ({ data, setData }) => {
         <input className="form-input" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
       </div>
       <div className="form-group">
-        <label>Ссылка Instagram</label>
-        <input className="form-input" value={form.instagram} onChange={e => setForm({ ...form, instagram: e.target.value })} placeholder="https://instagram.com/..." />
+        <label>Instagram URL</label>
+        <input className="form-input" value={form.instagram} onChange={e => setForm({ ...form, instagram: e.target.value })} />
       </div>
       <div className="form-group">
-        <label>Ссылка Telegram</label>
-        <input className="form-input" value={form.telegram} onChange={e => setForm({ ...form, telegram: e.target.value })} placeholder="https://t.me/..." />
+        <label>Telegram URL</label>
+        <input className="form-input" value={form.telegram} onChange={e => setForm({ ...form, telegram: e.target.value })} />
       </div>
-      <button className="btn-save" onClick={save}>Сохранить контакты</button>
+      <button className="btn-main" onClick={save}>Сохранить</button>
     </div>
   );
 };
@@ -361,17 +399,29 @@ const AdminCategory = ({ data, setData }) => {
   const { catId } = useParams();
   const category = data.categories.find(c => c.id === catId);
   const [editingItem, setEditingItem] = useState(null);
-  const [tempImage, setTempImage] = useState('');
 
   if (!category) return <div>Категория не найдена</div>;
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => setTempImage(reader.result);
-      reader.readAsDataURL(file);
-    }
+  const saveItem = (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const newItem = {
+      id: editingItem?.id || Date.now(),
+      name: formData.get('name'),
+      code: formData.get('code'),
+      price: formData.get('price'),
+      image: formData.get('image_url') || editingItem?.image || '',
+      description: formData.get('description')
+    };
+    const newCats = data.categories.map(c => {
+      if (c.id === catId) {
+        const items = editingItem?.id ? c.items.map(i => i.id === editingItem.id ? newItem : i) : [...c.items, newItem];
+        return { ...c, items };
+      }
+      return c;
+    });
+    setData({ ...data, categories: newCats });
+    setEditingItem(null);
   };
 
   const deleteItem = (id) => {
@@ -384,65 +434,45 @@ const AdminCategory = ({ data, setData }) => {
     }
   };
 
-  const saveItem = (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const newItem = {
-      id: editingItem?.id || Date.now(),
-      name: formData.get('name'),
-      code: formData.get('code'),
-      price: formData.get('price'),
-      image: tempImage || formData.get('image_url') || editingItem?.image || '',
-      description: formData.get('description')
-    };
-    const newCats = data.categories.map(c => {
-      if (c.id === catId) {
-        const items = editingItem?.id ? c.items.map(i => i.id === editingItem.id ? newItem : i) : [...c.items, newItem];
-        return { ...c, items };
-      }
-      return c;
-    });
-    setData({ ...data, categories: newCats });
-    setEditingItem(null);
-    setTempImage('');
-  };
-
   return (
     <div>
-      <div className="admin-header">
-        <h2>{category.title}</h2>
-        <button className="btn-save" onClick={() => { setEditingItem({}); setTempImage(''); }}>+ Добавить товар</button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
+        <h2 style={{ color: 'var(--accent)', border: 'none', padding: 0 }}>{category.title}</h2>
+        <button className="btn-main" onClick={() => setEditingItem({})}>+ Добавить товар</button>
       </div>
+
       {editingItem && (
-        <div className="admin-card" style={{ marginBottom: '30px', border: '2px solid #000' }}>
+        <div className="admin-card" style={{ marginBottom: '40px', border: '1px solid var(--accent)' }}>
           <h3>{editingItem.id ? 'Редактировать' : 'Новый товар'}</h3>
-          <form onSubmit={saveItem}>
+          <form onSubmit={saveItem} style={{ marginTop: '20px' }}>
             <div className="form-group"><label>Название</label><input name="name" className="form-input" defaultValue={editingItem.name} required /></div>
             <div className="form-group"><label>Артикул</label><input name="code" className="form-input" defaultValue={editingItem.code} /></div>
-            <div className="form-group"><label>Цена (SUM)</label><input name="price" className="form-input" defaultValue={editingItem.price} /></div>
-            <div className="form-group"><label>Изображение (Файл)</label><input type="file" className="form-input" onChange={handleFileChange} accept="image/*" /></div>
-            <div className="form-group"><label>Либо URL Изображения</label><input name="image_url" className="form-input" defaultValue={editingItem.image?.startsWith('http') ? editingItem.image : ''} /></div>
-            {(tempImage || editingItem.image) && <img src={tempImage || editingItem.image} alt="preview" style={{ maxHeight: '100px', display: 'block', marginBottom: '20px' }} />}
+            <div className="form-group"><label>Цена</label><input name="price" className="form-input" defaultValue={editingItem.price} /></div>
+            <div className="form-group"><label>URL Изображения</label><input name="image_url" className="form-input" defaultValue={editingItem.image} /></div>
             <div className="form-group"><label>Описание</label><textarea name="description" className="form-input" defaultValue={editingItem.description} /></div>
-            <button type="submit" className="btn-save">Сохранить</button>
-            <button type="button" className="action-btn" onClick={() => setEditingItem(null)} style={{ marginLeft: '10px' }}>Отмена</button>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button type="submit" className="btn-main">Сохранить</button>
+              <button type="button" className="btn-main" style={{ background: '#333', color: '#fff' }} onClick={() => setEditingItem(null)}>Отмена</button>
+            </div>
           </form>
         </div>
       )}
+
       <div className="admin-card">
-        <div className="admin-table-wrapper">
-          <table className="admin-table">
-            <thead><tr><th>Наименование</th><th>Артикул</th><th>Цена</th><th>Действия</th></tr></thead>
-            <tbody>
-              {category.items.map(item => (
-                <tr key={item.id}>
-                  <td>{item.name}</td><td>{item.code}</td><td>{item.price} SUM</td>
-                  <td><button className="action-btn" onClick={() => { setEditingItem(item); setTempImage(''); }}>Ред.</button><button className="action-btn delete-btn" onClick={() => deleteItem(item.id)}>Удал.</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <table className="admin-table">
+          <thead><tr><th>Наименование</th><th>Артикул</th><th>Цена</th><th>Действия</th></tr></thead>
+          <tbody>
+            {category.items.map(item => (
+              <tr key={item.id}>
+                <td>{item.name}</td><td>{item.code}</td><td>{item.price} SUM</td>
+                <td>
+                  <button className="action-btn" onClick={() => setEditingItem(item)}>Ред.</button>
+                  <button className="action-btn" style={{ color: '#ff4444' }} onClick={() => deleteItem(item.id)}>Удал.</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
@@ -458,3 +488,4 @@ const MainApp = () => {
 };
 
 export default MainApp;
+
