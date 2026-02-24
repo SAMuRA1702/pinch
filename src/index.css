@@ -1,26 +1,46 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
 
 :root {
-  /* Colors - Premium Dark/Gold Theme */
-  --bg-color: #0d0d0d;
-  --bg-secondary: #1a1a1a;
-  --text-primary: #ffffff;
-  --text-secondary: #a0a0a0;
-  --accent: #c5a059; /* Muted Gold */
-  --accent-hover: #e0bc75;
-  --border-color: rgba(255, 255, 255, 0.1);
-  --card-bg: rgba(255, 255, 255, 0.03);
-  --glass-bg: rgba(255, 255, 255, 0.05);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  
+  /* Colors - Vivid Dynamic Theme */
+  --bg-color-1: #ffffff;
+  --bg-color-2: #ffeec2;
+  /* Honey */
+  --bg-color-3: #ffdce5;
+  /* Rose */
+  --bg-color-4: #dceeff;
+  /* Sky */
+  --bg-secondary: #ffffff;
+  --text-primary: #1a1a1a;
+  --text-secondary: #444444;
+  --accent: #c5a059;
+  --accent-hover: #b08d4b;
+  --border-color: rgba(0, 0, 0, 0.08);
+  --card-bg: rgba(255, 255, 255, 0.5);
+  --glass-bg: rgba(255, 255, 255, 0.3);
+  --glass-border: rgba(255, 255, 255, 0.9);
+
   /* Spacing */
   --container-max: 1240px;
   --section-padding: 100px;
-  
+
   /* Shadows */
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.6);
-  --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.8);
+  --shadow-sm: 0 4px 12px rgba(197, 160, 89, 0.12);
+  --shadow-md: 0 10px 40px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 30px 60px rgba(197, 160, 89, 0.2);
+}
+
+@keyframes flow {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 * {
@@ -31,14 +51,21 @@
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  background-color: var(--bg-color);
+  background: linear-gradient(-45deg, var(--bg-color-1), var(--bg-color-2), var(--bg-color-3), var(--bg-color-4));
+  background-size: 400% 400%;
+  animation: flow 10s ease infinite;
+  /* Сделал анимацию чуть быстрее для наглядности */
+  background-attachment: fixed;
   color: var(--text-primary);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
+  min-height: 100vh;
 }
 
-h1, h2, h3, .brand-name {
+h1,
+h2,
+h3,
+.brand-name {
   font-family: 'Playfair Display', serif;
 }
 
@@ -50,10 +77,11 @@ h1, h2, h3, .brand-name {
 
 /* --- HEADER --- */
 header {
-  min-height: 80vh;
+  min-height: 90vh;
   display: flex;
   align-items: center;
   justify-content: center;
+  background-image: url('/hero.jpg');
   background-position: center;
   background-size: cover;
   background-attachment: fixed;
@@ -68,7 +96,8 @@ header::before {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.6), rgba(13,13,13,1));
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.8) 100%);
+  backdrop-filter: blur(2px);
   z-index: 1;
 }
 
@@ -76,6 +105,22 @@ header .container {
   position: relative;
   z-index: 2;
   text-align: center;
+  padding-bottom: 180px;
+  /* Запас для нахлеста */
+}
+
+/* --- MAIN CONTENT OVERLAP --- */
+main.container {
+  margin-top: -140px;
+  /* Нахлест на хедер */
+  position: relative;
+  z-index: 10;
+  background: #ffffff;
+  border-radius: 40px 40px 0 0;
+  /* Закругление сверху */
+  padding: 80px 40px;
+  box-shadow: 0 -20px 50px rgba(0, 0, 0, 0.04);
+  min-height: 100vh;
 }
 
 .logo-section {
@@ -150,21 +195,23 @@ section {
 
 .product-item {
   position: relative;
-  padding: 30px 20px;
+  padding: 36px 24px;
   background: var(--card-bg);
+  backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
-  border-radius: 12px;
+  border-radius: 16px;
   transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
   cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
+  box-shadow: var(--shadow-sm);
 }
 
 .product-item:hover {
-  transform: translateY(-10px);
-  background: var(--glass-bg);
+  transform: translateY(-8px);
+  background: #ffffff;
   border-color: var(--accent);
   box-shadow: var(--shadow-lg);
 }
@@ -172,10 +219,10 @@ section {
 .product-placeholder {
   width: 100%;
   aspect-ratio: 1 / 2;
-  max-height: 200px;
-  background: rgba(255,255,255,0.02);
+  max-height: 220px;
+  background: rgba(0, 0, 0, 0.02);
   border-radius: 8px;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -184,23 +231,25 @@ section {
 
 .product-name {
   font-family: 'Playfair Display', serif;
-  font-size: 18px;
+  font-size: 19px;
   font-weight: 700;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   color: var(--text-primary);
 }
 
 .product-code {
-  font-size: 12px;
+  font-size: 11px;
+  text-transform: uppercase;
   color: var(--text-secondary);
-  letter-spacing: 1px;
+  letter-spacing: 2px;
 }
 
 .product-price {
-  margin-top: 16px;
-  font-size: 18px;
-  font-weight: 700;
+  margin-top: 18px;
+  font-size: 20px;
+  font-weight: 800;
   color: var(--accent);
+  letter-spacing: -0.5px;
 }
 
 /* --- MODAL --- */
@@ -210,8 +259,8 @@ section {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.9);
-  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -219,18 +268,19 @@ section {
 }
 
 .modal-content {
-  background: var(--bg-secondary);
+  background: #ffffff;
   width: 90%;
-  max-width: 1000px;
+  max-width: 1100px;
   max-height: 90vh;
-  border-radius: 16px;
+  border-radius: 24px;
   position: relative;
-  padding: 60px;
-  border: 1px solid var(--glass-border);
+  padding: 80px;
+  border: 1px solid var(--border-color);
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 60px;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 80px;
   overflow-y: auto;
+  box-shadow: 0 40px 100px rgba(197, 160, 89, 0.1);
 }
 
 .modal-close {
@@ -253,7 +303,7 @@ section {
 /* --- FOOTER --- */
 footer {
   padding: 100px 0 40px;
-  background: var(--bg-secondary);
+  background: #ffffff;
   border-top: 1px solid var(--border-color);
 }
 
@@ -265,37 +315,40 @@ footer {
 }
 
 .form-input {
-  background: rgba(255,255,255,0.05);
-  border: 1px solid var(--border-color);
-  padding: 14px 18px;
-  color: white;
-  border-radius: 8px;
+  background: #fdfdfd;
+  border: 1px solid #eeeeee;
+  padding: 16px 20px;
+  color: var(--text-primary);
+  border-radius: 12px;
   width: 100%;
-  margin-bottom: 12px;
-  transition: border-color 0.3s ease;
+  margin-bottom: 16px;
+  transition: all 0.3s ease;
 }
 
 .form-input:focus {
   outline: none;
   border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(197, 160, 89, 0.1);
 }
 
 .btn-main {
-  background: var(--accent);
-  color: #000;
+  background: var(--text-primary);
+  color: #ffffff;
   border: none;
-  padding: 16px 32px;
+  padding: 18px 36px;
   font-weight: 700;
-  border-radius: 8px;
+  border-radius: 12px;
   cursor: pointer;
   transition: all 0.3s ease;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 2px;
+  font-size: 13px;
 }
 
 .btn-main:hover {
-  background: var(--accent-hover);
-  transform: translateY(-2px);
+  background: var(--accent);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
 }
 
 .social-icons-row {
@@ -305,21 +358,22 @@ footer {
 }
 
 .social-icon-link {
-  width: 48px;
-  height: 48px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.05);
+  background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: var(--text-primary);
   transition: all 0.3s ease;
-  border: 1px solid var(--glass-border);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
 }
 
 .social-icon-link:hover {
   background: var(--accent);
-  color: #000;
+  color: #ffffff;
   transform: translateY(-5px);
 }
 
@@ -327,12 +381,12 @@ footer {
 .admin-layout {
   display: flex;
   min-height: 100vh;
-  background: #000;
+  background: #fdfaf5;
 }
 
 .admin-sidebar {
   width: 280px;
-  background: #111;
+  background: #ffffff;
   border-right: 1px solid var(--border-color);
   padding: 40px 0;
 }
@@ -340,15 +394,17 @@ footer {
 .admin-nav-item {
   padding: 14px 40px;
   display: block;
-  color: var(--text-secondary);
+  color: #888888;
   text-decoration: none;
   transition: all 0.3s ease;
   border-left: 3px solid transparent;
+  font-weight: 600;
 }
 
-.admin-nav-item:hover, .admin-nav-item.active {
-  color: var(--accent);
-  background: rgba(197, 160, 89, 0.05);
+.admin-nav-item:hover,
+.admin-nav-item.active {
+  color: var(--text-primary);
+  background: #fcfcfc;
   border-left-color: var(--accent);
 }
 
@@ -358,29 +414,27 @@ footer {
 }
 
 .admin-card {
-  background: #111;
+  background: #ffffff;
   border: 1px solid var(--border-color);
   padding: 40px;
-  border-radius: 12px;
-}
-
-.admin-table {
-  width: 100%;
-  border-collapse: collapse;
+  border-radius: 20px;
+  box-shadow: var(--shadow-md);
 }
 
 .admin-table th {
   text-align: left;
   padding: 16px;
-  border-bottom: 2px solid var(--border-color);
-  color: var(--text-secondary);
-  font-size: 12px;
+  border-bottom: 2px solid #f5f5f5;
+  color: #bbb;
+  font-size: 11px;
   text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .admin-table td {
   padding: 16px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid #f5f5f5;
+  font-size: 14px;
 }
 
 /* --- RESPONSIVENESS --- */
@@ -413,25 +467,26 @@ footer {
   .brand-name {
     letter-spacing: 2px;
   }
-  
+
   .footer-content {
     grid-template-columns: 1fr;
     text-align: center;
   }
-  
-  .footer-info, .footer-contacts {
+
+  .footer-info,
+  .footer-contacts {
     align-items: center;
   }
 
   .admin-layout {
     flex-direction: column;
   }
-  
+
   .admin-sidebar {
     width: 100%;
     padding: 20px 0;
   }
-  
+
   .admin-nav-item {
     padding: 10px 24px;
     display: inline-block;
@@ -442,7 +497,7 @@ footer {
   .product-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .category-header {
     flex-direction: column;
     align-items: flex-start;
