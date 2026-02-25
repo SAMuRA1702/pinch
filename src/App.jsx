@@ -1,34 +1,48 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useParams } from 'react-router-dom';
-import { Instagram, Send, X, Phone, Mail, ChevronRight } from 'lucide-react';
+import { Instagram, Send, X, Phone, Mail, ChevronRight, ArrowRight, Menu } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { Float, Sphere, MeshDistortMaterial, Points, PointMaterial } from '@react-three/drei';
+import * as THREE from 'three';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import Lenis from 'lenis';
+
+gsap.registerPlugin(ScrollTrigger);
 
 // --- DATA PERSISTENCE ---
-const STORAGE_KEY = 'pinch_drop_data';
+const STORAGE_KEY = 'pinch_drop_data_v3';
 
 const initialData = {
   header: {
     brand: 'PINCH & DROP',
-    slogan: 'Насыщенные яркие вкусы, тщательно подобранные натуральные ингредиенты и оригинальная рецептура'
+    slogan: 'Архитекторы вкуса. Натуральные ингредиенты. Оригинальные рецептуры сиропов и основ.'
   },
   categories: [
     {
       id: 'syrups',
       title: 'Сиропы',
-      meta: 'стекло | 1 л | 24 месяца',
-      description: 'Pinch&Drop® — это насыщенные яркие вкусы, тщательно подобранные натуральные ингредиенты и оригинальная рецептура сиропов!',
+      meta: 'Стекло | 1 л | 24 мес.',
+      description: 'Высококонцентрированные вкусы для профессиональной миксологии.',
       items: [
-        { id: 1, name: 'Amaretto', code: '5034506', price: '750', image: '' },
-        { id: 2, name: 'Яблочный пирог', code: '5030911', price: '750', image: '' }
+        { id: 1, name: 'Амаретто', code: '5034506', price: '750', image: '' },
+        { id: 2, name: 'Яблочный пирог', code: '5030911', price: '750', image: '' },
+        { id: 4, name: 'Соленая карамель', code: '5030912', price: '820', image: '' },
+        { id: 5, name: 'Ваниль', code: '5030913', price: '790', image: '' },
+        { id: 6, name: 'Кокос', code: '5030914', price: '750', image: '' },
+        { id: 7, name: 'Лесной орех', code: '5030915', price: '750', image: '' }
       ]
     },
     {
       id: 'pures',
-      title: 'Фруктовое пюре',
-      meta: 'пластик | 1 л | 12 месяцев',
-      description: 'Содержат около 70 % фруктов и ягод, полностью натуральные.',
+      title: 'Пюре',
+      meta: 'Фрукты | 1 л | 12 мес.',
+      description: '70% содержания натуральных фруктов. Почувствуйте вкус природы.',
       items: [
-        { id: 3, name: 'Банан', code: '5045174', price: '1200', image: '' }
+        { id: 3, name: 'Банан', code: '5045174', price: '1200', image: '' },
+        { id: 8, name: 'Малина', code: '5045175', price: '1450', image: '' },
+        { id: 9, name: 'Манго', code: '5045176', price: '1600', image: '' }
       ]
     }
   ],
@@ -41,451 +55,619 @@ const initialData = {
   requests: []
 };
 
-// --- ANIMATION VARIANTS ---
-const fadeInUp = {
-  initial: { opacity: 0, y: 20 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.6, ease: [0.6, -0.05, 0.01, 0.99] }
-};
+// --- BACKGROUND 3D COMPONENT ---
+function BackgroundScene() {
+  const pointsRef = useRef();
+  const sphereRef = useRef();
+  const [scrollVelocity, setScrollVelocity] = useState(0);
 
-const staggerContainer = {
-  animate: {
-    transition: {
-      staggerChildren: 0.1
+  useFrame((state) => {
+    const time = state.clock.getElapsedTime();
+    // Плавное затухание скорости скролла
+    setScrollVelocity(prev => prev * 0.95);
+
+    if (pointsRef.current) {
+      pointsRef.current.rotation.y = time * 0.05 + scrollVelocity * 0.001;
+      pointsRef.current.rotation.x = Math.sin(time * 0.1) * 0.1;
     }
-  }
-};
+    if (sphereRef.current) {
+      // Сфера деформируется сильнее при быстром скролле
+      sphereRef.current.distort = 0.4 + Math.abs(scrollVelocity) * 0.0005;
+      sphereRef.current.speed = 2 + Math.abs(scrollVelocity) * 0.001;
+    }
+  });
 
-// --- COMPONENTS ---
+  // Ловим событие скролла для Three.js
+  useEffect(() => {
+    const handleScroll = (e) => setScrollVelocity(window.scrollY - (window.lastY || 0));
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
+  const particles = useMemo(() => {
+    const count = 3000; // Больше частиц для плотности
+    const positions = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      positions[i * 3] = (Math.random() - 0.5) * 15;
+      positions[i * 3 + 1] = (Math.random() - 0.5) * 15;
+      positions[i * 3 + 2] = (Math.random() - 0.5) * 15;
+    }
+    return positions;
+  }, []);
+
+  return (
+    <group>
+      <Points ref={pointsRef} positions={particles} stride={3} frustumCulled={false}>
+        <PointMaterial
+          transparent
+          color="#c5a059"
+          size={0.015}
+          sizeAttenuation={true}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+        />
+      </Points>
+      <Float speed={5} rotationIntensity={2} floatIntensity={2}>
+        <Sphere args={[1.2, 128, 128]} position={[2, -0.5, -2]}>
+          <MeshDistortMaterial
+            ref={sphereRef}
+            color="#c5a059"
+            distort={0.5}
+            speed={2}
+            roughness={0.1}
+            metalness={1}
+            emissive="#221100"
+            emissiveIntensity={0.5}
+          />
+        </Sphere>
+      </Float>
+    </group>
+  );
+}
+
+// --- MAIN LANDING PAGE ---
 const Landing = ({ data, setData }) => {
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [callbackForm, setCallbackForm] = useState({ name: '', phone: '' });
-  const [isSent, setIsSent] = useState(false);
+  const heroRef = useRef();
+  const titleRef = useRef();
 
-  const handleCallback = (e) => {
-    e.preventDefault();
-    const newRequest = {
-      id: Date.now(),
-      ...callbackForm,
-      date: new Date().toLocaleString()
-    };
-    setData({
-      ...data,
-      requests: [newRequest, ...(data.requests || [])]
+  useEffect(() => {
+    // Lenis Smooth Scroll
+    const lenis = new Lenis({
+      duration: 1.2,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      orientation: 'vertical',
+      smoothWheel: true,
     });
-    setCallbackForm({ name: '', phone: '' });
-    setIsSent(true);
-    setTimeout(() => setIsSent(false), 3000);
+
+    function raf(time) {
+      lenis.raf(time);
+      window.lastY = window.scrollY; // Сохраняем для 3D деформации
+      requestAnimationFrame(raf);
+    }
+    requestAnimationFrame(raf);
+
+    // Hero Text Animation
+    if (titleRef.current) {
+      gsap.fromTo(titleRef.current,
+        { y: 200, skewY: 10, opacity: 0 },
+        { y: 0, skewY: 0, opacity: 1, duration: 1.5, ease: "power4.out", delay: 0.5 }
+      );
+    }
+
+    return () => lenis.destroy();
+  }, []);
+
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const cursorRef = useRef();
+
+  useEffect(() => {
+    const handleGlobalMouseMove = (e) => {
+      setMousePos({ x: e.clientX, y: e.clientY });
+      if (cursorRef.current) {
+        const isHovering = e.target.closest('button, a, .bento-item, input');
+        gsap.to(cursorRef.current, {
+          x: e.clientX,
+          y: e.clientY,
+          scale: isHovering ? 2.5 : 1,
+          duration: 0.8,
+          ease: "power3.out"
+        });
+      }
+    };
+    window.addEventListener('mousemove', handleGlobalMouseMove);
+    return () => window.removeEventListener('mousemove', handleGlobalMouseMove);
+  }, []);
+
+  const handleMouseMove = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    e.currentTarget.style.setProperty('--x', `${x}%`);
+    e.currentTarget.style.setProperty('--y', `${y}%`);
+
+    // Находим внутренний элемент для трансформации
+    const target = e.currentTarget.querySelector('.bento-inner');
+    if (!target) return;
+
+    // Нормализованный наклон (эффект одинаков для всех размеров)
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const percentX = (e.clientX - centerX) / (rect.width / 2); // от -1 до 1
+    const percentY = (e.clientY - centerY) / (rect.height / 2); // от -1 до 1
+
+    const maxRotation = 4; // Максимальный угол наклона в градусах
+    const rotateX = -(percentY * maxRotation);
+    const rotateY = percentX * maxRotation;
+
+    target.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.01, 1.01, 1.01)`;
+  };
+
+  const handleMouseLeave = (e) => {
+    const target = e.currentTarget.querySelector('.bento-inner');
+    if (target) {
+      target.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)`;
+    }
+  };
+
+  const bentoGridConfig = (index) => {
+    const patterns = ['item-large', 'item-small', 'item-medium', 'item-tall', 'item-small'];
+    return patterns[index % patterns.length];
   };
 
   return (
-    <div className="app">
-      <header>
-        <div className="container">
-          <motion.div
-            className="logo-section"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 1, ease: "easeOut" }}
-          >
-            <h1 className="brand-name">{data.header.brand}</h1>
-          </motion.div>
-          <motion.div
-            className="slogan-box"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5, duration: 0.8 }}
-          >
-            <p className="slogan-text">{data.header.slogan}</p>
-          </motion.div>
+    <div className="immersive-app">
+      <div className="liquid-cursor" ref={cursorRef}></div>
+      <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 1 }}>
+        <Canvas camera={{ position: [0, 0, 5], fov: 45 }}>
+          <ambientLight intensity={0.5} />
+          <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} />
+          <pointLight position={[-10, -10, -10]} />
+          <BackgroundScene />
+        </Canvas>
+      </div>
+
+      <section className="hero" ref={heroRef}>
+        <div className="hero-title-wrapper">
+          <h1 className="hero-title" ref={titleRef}>{data.header.brand}</h1>
         </div>
-      </header>
+        <p style={{ marginTop: '20px', fontSize: '14px', letterSpacing: '2px', opacity: 0.5, textTransform: 'uppercase' }}>Архитекторы вкуса</p>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.5 }}
+          style={{ marginTop: '50px' }}
+        >
+          <div className="scroll-indicator">
+            <div className="mouse"></div>
+          </div>
+        </motion.div>
+      </section>
 
-      <main className="container">
-        {data.categories.map((cat) => (
-          <section key={cat.id}>
-            <div className="category-block">
-              <motion.div
-                className="category-header"
-                initial={{ opacity: 0, x: -20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-              >
-                <h2 className="category-title">{cat.title}</h2>
-                <div className="category-meta">{cat.meta}</div>
-              </motion.div>
-
-              <p className="category-description">{cat.description}</p>
-
-              <motion.div
-                className="product-grid"
-                variants={staggerContainer}
-                initial="initial"
-                whileInView="animate"
-                viewport={{ once: true, margin: "-100px" }}
-              >
-                {cat.items.length > 0 ? (
-                  cat.items.map((item) => (
-                    <motion.div
-                      key={item.id}
-                      className="product-item"
-                      variants={fadeInUp}
-                      onClick={() => setSelectedProduct({ ...item, categoryMeta: cat.meta })}
-                    >
-                      <div className="product-placeholder">
-                        {item.image && <img src={item.image} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />}
-                      </div>
-                      <div className="product-name">{item.name}</div>
-                      <div className="product-code">{item.code}</div>
-                      {item.price && <div className="product-price">{item.price} SUM</div>}
-                    </motion.div>
-                  ))
-                ) : (
-                  <div style={{ opacity: 0.5, gridColumn: '1/-1' }}>Товары в данной категории пока отсутствуют.</div>
-                )}
-              </motion.div>
-            </div>
-          </section>
+      <nav className="category-nav">
+        {data.categories.map(cat => (
+          <a key={cat.id} href={`#${cat.id}`} className="nav-pill">{cat.title}</a>
         ))}
-      </main>
+      </nav>
+
+      <div className="bento-container">
+        {data.categories.map((cat) => (
+          <React.Fragment key={cat.id}>
+            <div className="bento-header" id={cat.id} style={{ paddingBottom: '40px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                <h2 className="bento-category-title">{cat.title}</h2>
+                <span style={{ fontSize: '12px', padding: '4px 12px', background: 'var(--accent)', color: '#000', borderRadius: '20px', fontWeight: '700' }}>
+                  {cat.items.length} позиций
+                </span>
+              </div>
+              <p style={{ opacity: 0.4, maxWidth: '600px', fontSize: '14px' }}>{cat.description}</p>
+              <div style={{ marginTop: '10px', fontSize: '10px', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '2px' }}>{cat.meta}</div>
+            </div>
+
+            {cat.items.map((item, idx) => (
+              <div
+                key={item.id}
+                className={`bento-item ${bentoGridConfig(idx)}`}
+                onMouseMove={handleMouseMove}
+                onMouseLeave={handleMouseLeave}
+                onClick={() => setSelectedProduct({ ...item, categoryMeta: cat.meta })}
+                style={{ cursor: 'none' }}
+              >
+                <div className="bento-inner">
+                  <div className="product-card">
+                    <div className="product-image-container">
+                      {item.image ? (
+                        <img src={item.image} alt={item.name} />
+                      ) : (
+                        <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <div style={{ fontSize: '100px', opacity: 0.03, fontFamily: 'var(--font-display)', position: 'absolute' }}>{item.name.charAt(0)}</div>
+                          <div style={{ fontSize: '10px', opacity: 0.2, fontWeight: '700', letterSpacing: '2px' }}>ФОТО В ОБРАБОТКЕ</div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="product-info">
+                      <div style={{ fontSize: '10px', opacity: 0.4, marginBottom: '4px' }}>АРТ. {item.code}</div>
+                      <div className="product-name">{item.name}</div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span className="product-price">{item.price} СУМ</span>
+                        <div className="btn-circle"><ArrowRight size={14} /></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </React.Fragment>
+        ))}
+      </div>
+
+      <footer style={{ padding: '10vw 4vw', background: 'transparent', position: 'relative', zIndex: 2 }}>
+        <div className="bento-container" style={{ padding: 0 }}>
+          {/* Левый блок: Форма */}
+          <div className="bento-item" style={{ gridColumn: 'span 6', padding: '80px', background: 'rgba(255,255,255,0.01)', display: 'flex', flexDirection: 'column', justifyContent: 'center' }} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
+            <h2 className="bento-category-title" style={{ fontSize: '32px', marginBottom: '10px' }}>Напишите нам</h2>
+            <p style={{ opacity: 0.5, marginBottom: '40px', fontSize: '14px' }}>Мы ответим вам в течение 15 минут</p>
+
+            <form className="contact-form" onSubmit={e => e.preventDefault()}>
+              <div className="form-group">
+                <input type="text" className="form-input" placeholder=" " required />
+                <label className="form-label">Ваше имя</label>
+              </div>
+              <div className="form-group">
+                <input type="tel" className="form-input" placeholder=" " required />
+                <label className="form-label">Телефон</label>
+              </div>
+              <button className="btn-main" style={{ borderRadius: '100px', padding: '20px 40px', fontSize: '12px', letterSpacing: '3px', width: 'auto', marginTop: '10px' }}>
+                ОТПРАВИТЬ ЗАЯВКУ
+              </button>
+            </form>
+          </div>
+
+          {/* Правый блок: Контакты */}
+          <div className="bento-item" style={{ gridColumn: 'span 6', padding: '80px', display: 'flex', flexDirection: 'column', justifyContent: 'center', background: 'rgba(255,255,255,0.01)' }} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
+            <div style={{ marginBottom: '50px' }}>
+              <div style={{ fontSize: '10px', color: 'var(--accent)', letterSpacing: '2px', marginBottom: '15px' }}>ГЛАВНЫЙ ОФИС</div>
+              <a href={`tel:${data.contacts.phone}`} className="contact-value" style={{ fontSize: '32px' }}>{data.contacts.phone}</a>
+            </div>
+            <div style={{ marginBottom: '50px' }}>
+              <div style={{ fontSize: '10px', color: 'var(--accent)', letterSpacing: '2px', marginBottom: '15px' }}>E-MAIL</div>
+              <a href={`mailto:${data.contacts.email}`} className="contact-value" style={{ fontSize: '20px' }}>{data.contacts.email}</a>
+            </div>
+
+            <div style={{ display: 'flex', gap: '15px' }}>
+              <a href={data.contacts.instagram} className="social-link" target="_blank" rel="noreferrer" style={{ width: '50px', height: '50px' }}>
+                <Instagram size={20} />
+              </a>
+              <a href={data.contacts.telegram} className="social-link" target="_blank" rel="noreferrer" style={{ width: '50px', height: '50px' }}>
+                <Send size={20} />
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ textAlign: 'center', marginTop: '100px', opacity: 0.2, fontSize: '12px', letterSpacing: '4px' }}>
+          &copy; {new Date().getFullYear()} {data.header.brand.toUpperCase()} — ВСЕ ПРАВА ЗАЩИЩЕНЫ
+        </div>
+      </footer>
 
       {/* Product Detail Modal */}
       <AnimatePresence>
         {selectedProduct && (
           <motion.div
-            className="modal-overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setSelectedProduct(null)}
+            className="immersive-modal"
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            style={{ display: 'flex' }}
           >
-            <motion.div
-              className="modal-content"
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              onClick={e => e.stopPropagation()}
-            >
-              <button className="modal-close" onClick={() => setSelectedProduct(null)}><X size={32} /></button>
-
-              <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '300px' }}>
-                {selectedProduct.image ? (
-                  <img src={selectedProduct.image} alt={selectedProduct.name} style={{ maxWidth: '100%', maxHeight: '400px', objectFit: 'contain' }} />
-                ) : (
-                  <div style={{ fontSize: '100px', opacity: 0.05 }}>▲</div>
-                )}
-              </div>
-
-              <div>
-                <div style={{ color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '2px', fontSize: '12px', marginBottom: '16px' }}>{selectedProduct.categoryMeta}</div>
-                <h2 style={{ fontFamily: 'Playfair Display, serif', fontSize: '42px', marginBottom: '20px', border: 'none', padding: 0 }}>{selectedProduct.name}</h2>
-                <div style={{ color: 'var(--text-secondary)', marginBottom: '32px' }}>Артикул: {selectedProduct.code}</div>
-
-                {selectedProduct.price && (
-                  <div style={{ fontSize: '32px', fontWeight: '800', color: 'var(--accent)', marginBottom: '40px' }}>{selectedProduct.price} SUM</div>
-                )}
-
-                {selectedProduct.description && (
-                  <div>
-                    <h4 style={{ textTransform: 'uppercase', fontSize: '12px', marginBottom: '12px', color: 'var(--text-secondary)' }}>О товаре:</h4>
-                    <p style={{ color: 'var(--text-secondary)', lineHeight: '1.8' }}>{selectedProduct.description}</p>
-                  </div>
-                )}
-
-                <button
-                  className="btn-main"
-                  style={{ width: '100%', marginTop: '40px' }}
-                  onClick={() => {
-                    setSelectedProduct(null);
-                    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-                  }}
-                >
-                  Заказать обратный звонок
+            <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', top: '40px', left: '40px', zIndex: 10 }}>
+                <button onClick={() => setSelectedProduct(null)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}>
+                  <X size={40} />
                 </button>
               </div>
-            </motion.div>
+              <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0a0a' }}>
+                {selectedProduct.image ? (
+                  <img src={selectedProduct.image} style={{ maxHeight: '80%' }} />
+                ) : (
+                  <span style={{ fontSize: '10vw', opacity: 0.1, fontFamily: 'var(--font-display)' }}>PINCH & DROP</span>
+                )}
+              </div>
+            </div>
+            <div style={{ width: '40%', padding: '80px', background: '#000', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <h4 style={{ color: 'var(--accent)', letterSpacing: '4px', textTransform: 'uppercase', fontSize: '12px', marginBottom: '20px' }}>{selectedProduct.categoryMeta}</h4>
+              <h2 style={{ fontSize: '64px', fontFamily: 'var(--font-display)', marginBottom: '30px' }}>{selectedProduct.name}</h2>
+              <p style={{ opacity: 0.5, marginBottom: '40px' }}>Артикул: {selectedProduct.code}</p>
+              <div style={{ fontSize: '40px', fontWeight: '900', color: 'var(--accent)', marginBottom: '60px' }}>{selectedProduct.price} СУМ</div>
+              <button className="btn-main" onClick={() => setSelectedProduct(null)}>Оформить предзаказ</button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
-
-      <footer>
-        <div className="container">
-          <div className="footer-content">
-            <div className="footer-info">
-              <h3 style={{ fontSize: '24px', marginBottom: '32px', fontFamily: 'Playfair Display, serif' }}>Связаться с нами</h3>
-              <form onSubmit={handleCallback}>
-                <input
-                  type="text"
-                  placeholder="Ваше имя"
-                  className="form-input"
-                  required
-                  value={callbackForm.name}
-                  onChange={e => setCallbackForm({ ...callbackForm, name: e.target.value })}
-                />
-                <input
-                  type="tel"
-                  placeholder="Номер телефона"
-                  className="form-input"
-                  required
-                  value={callbackForm.phone}
-                  onChange={e => setCallbackForm({ ...callbackForm, phone: e.target.value })}
-                />
-                <button type="submit" className="btn-main">Отправить запрос</button>
-                {isSent && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ color: 'var(--accent)', marginTop: '15px' }}>Спасибо! Мы скоро свяжемся с вами.</motion.div>}
-              </form>
-            </div>
-
-            <div className="footer-contacts">
-              <h3 style={{ fontSize: '24px', marginBottom: '32px', fontFamily: 'Playfair Display, serif' }}>Контакты</h3>
-              <div className="contact-links">
-                <a href={`tel:${data.contacts.phone}`} style={{ fontSize: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <Phone size={20} color="var(--accent)" /> {data.contacts.phone}
-                </a>
-                <a href={`mailto:${data.contacts.email}`} style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-secondary)' }}>
-                  <Mail size={18} color="var(--accent)" /> {data.contacts.email}
-                </a>
-
-                <div className="social-icons-row">
-                  {data.contacts.instagram && (
-                    <a href={data.contacts.instagram} target="_blank" rel="noreferrer" className="social-icon-link">
-                      <Instagram size={20} />
-                    </a>
-                  )}
-                  {data.contacts.telegram && (
-                    <a href={data.contacts.telegram} target="_blank" rel="noreferrer" className="social-icon-link">
-                      <Send size={20} />
-                    </a>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div style={{ marginTop: '80px', paddingTop: '40px', borderTop: '1px solid var(--border-color)', opacity: 0.3, fontSize: '12px', textAlign: 'center' }}>
-            © {new Date().getFullYear()} PINCH & DROP • ALL RIGHTS RESERVED
-          </div>
-        </div>
-      </footer>
-    </div>
+    </div >
   );
 };
 
-// --- ADMIN PANEL ---
+// --- АДМИН-ПАНЕЛЬ (ПОЛНЫЙ ФУНКЦИОНАЛ) ---
 const Admin = ({ data, setData }) => {
-  return (
-    <div className="admin-layout">
-      <div className="admin-sidebar">
-        <div style={{ padding: '0 40px', marginBottom: '40px' }}>
-          <h1 style={{ fontFamily: 'Playfair Display, serif', fontSize: '20px', letterSpacing: '2px' }}>PINCH ADMIN</h1>
-        </div>
-        <nav>
-          <Link to="/admin" className="admin-nav-item">Общие настройки</Link>
-          <Link to="/admin/requests" className="admin-nav-item">Заявки ({data.requests?.length || 0})</Link>
-          <Link to="/admin/contacts" className="admin-nav-item">Контакты</Link>
-          <div style={{ padding: '20px 40px 10px', fontSize: '10px', color: '#444', textTransform: 'uppercase', letterSpacing: '2px' }}>Категории</div>
-          {data.categories.map(cat => (
-            <Link key={cat.id} to={`/admin/category/${cat.id}`} className="admin-nav-item">
-              {cat.title}
-            </Link>
-          ))}
-          <Link to="/" className="admin-nav-item" style={{ marginTop: 'auto', color: 'var(--accent)' }}>← На сайт</Link>
-        </nav>
-      </div>
+  const [activeTab, setActiveTab] = useState('catalog');
 
-      <div className="admin-main">
-        <Routes>
-          <Route path="/" element={<AdminGeneral data={data} setData={setData} />} />
-          <Route path="/requests" element={<AdminRequests data={data} setData={setData} />} />
-          <Route path="/contacts" element={<AdminContacts data={data} setData={setData} />} />
-          <Route path="/category/:catId" element={<AdminCategory data={data} setData={setData} />} />
-        </Routes>
-      </div>
-    </div>
-  );
-};
-
-const AdminGeneral = ({ data, setData }) => {
-  const [form, setForm] = useState(data.header);
-  const save = () => {
-    setData({ ...data, header: form });
-    alert('Сохранено');
+  const updateHeader = (field, value) => {
+    setData({ ...data, header: { ...data.header, [field]: value } });
   };
-  return (
-    <div className="admin-card">
-      <h2 style={{ border: 'none', padding: 0, marginBottom: '32px', color: 'var(--accent)' }}>Общие настройки</h2>
-      <div className="form-group">
-        <label>Название бренда</label>
-        <input className="form-input" value={form.brand} onChange={e => setForm({ ...form, brand: e.target.value })} />
-      </div>
-      <div className="form-group">
-        <label>Слоган</label>
-        <textarea className="form-input" rows="3" value={form.slogan} onChange={e => setForm({ ...form, slogan: e.target.value })} />
-      </div>
-      <button className="btn-main" onClick={save}>Сохранить</button>
-    </div>
-  );
-};
 
-const AdminRequests = ({ data, setData }) => {
-  const deleteRequest = (id) => {
-    setData({ ...data, requests: data.requests.filter(r => r.id !== id) });
-  };
-  return (
-    <div className="admin-card">
-      <h2 style={{ border: 'none', padding: 0, marginBottom: '32px', color: 'var(--accent)' }}>Заявки</h2>
-      <div style={{ overflowX: 'auto' }}>
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>Дата</th>
-              <th>Имя</th>
-              <th>Телефон</th>
-              <th>Действие</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(data.requests || []).map(req => (
-              <tr key={req.id}>
-                <td style={{ color: '#666', fontSize: '12px' }}>{req.date}</td>
-                <td style={{ fontWeight: '600' }}>{req.name}</td>
-                <td>{req.phone}</td>
-                <td>
-                  <button className="action-btn" style={{ color: '#ff4444', borderColor: 'rgba(255,68,68,0.2)' }} onClick={() => deleteRequest(req.id)}>Удалить</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {(!data.requests || data.requests.length === 0) && (
-          <div style={{ textAlign: 'center', padding: '60px', color: '#444' }}>Заявок пока нет</div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-const AdminContacts = ({ data, setData }) => {
-  const [form, setForm] = useState(data.contacts);
-  const save = () => {
-    setData({ ...data, contacts: form });
-    alert('Контакты обновлены');
-  };
-  return (
-    <div className="admin-card">
-      <h2 style={{ border: 'none', padding: 0, marginBottom: '32px', color: 'var(--accent)' }}>Контакты</h2>
-      <div className="form-group">
-        <label>Телефон</label>
-        <input className="form-input" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
-      </div>
-      <div className="form-group">
-        <label>Email</label>
-        <input className="form-input" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
-      </div>
-      <div className="form-group">
-        <label>Instagram URL</label>
-        <input className="form-input" value={form.instagram} onChange={e => setForm({ ...form, instagram: e.target.value })} />
-      </div>
-      <div className="form-group">
-        <label>Telegram URL</label>
-        <input className="form-input" value={form.telegram} onChange={e => setForm({ ...form, telegram: e.target.value })} />
-      </div>
-      <button className="btn-main" onClick={save}>Сохранить</button>
-    </div>
-  );
-};
-
-const AdminCategory = ({ data, setData }) => {
-  const { catId } = useParams();
-  const category = data.categories.find(c => c.id === catId);
-  const [editingItem, setEditingItem] = useState(null);
-
-  if (!category) return <div>Категория не найдена</div>;
-
-  const saveItem = (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const newItem = {
-      id: editingItem?.id || Date.now(),
-      name: formData.get('name'),
-      code: formData.get('code'),
-      price: formData.get('price'),
-      image: formData.get('image_url') || editingItem?.image || '',
-      description: formData.get('description')
-    };
-    const newCats = data.categories.map(c => {
-      if (c.id === catId) {
-        const items = editingItem?.id ? c.items.map(i => i.id === editingItem.id ? newItem : i) : [...c.items, newItem];
-        return { ...c, items };
+  const deleteItem = (catId, itemId) => {
+    const updatedCategories = data.categories.map(cat => {
+      if (cat.id === catId) {
+        return { ...cat, items: cat.items.filter(item => item.id !== itemId) };
       }
-      return c;
+      return cat;
     });
-    setData({ ...data, categories: newCats });
-    setEditingItem(null);
+    setData({ ...data, categories: updatedCategories });
   };
 
-  const deleteItem = (id) => {
-    if (window.confirm('Удалить товар?')) {
-      const newCats = data.categories.map(c => {
-        if (c.id === catId) return { ...c, items: c.items.filter(i => i.id !== id) };
-        return c;
-      });
-      setData({ ...data, categories: newCats });
-    }
+  const addCategory = () => {
+    const title = prompt('Название новой категории (например, Топпинги):');
+    if (!title) return;
+    const id = title.toLowerCase().replace(/\s+/g, '-');
+    setData({
+      ...data,
+      categories: [...data.categories, {
+        id,
+        title,
+        meta: 'Новая категория',
+        description: 'Описание категории...',
+        items: []
+      }]
+    });
+  };
+
+  const deleteCategory = (id) => {
+    if (!confirm('Удалить всю категорию и все товары в ней?')) return;
+    setData({
+      ...data,
+      categories: data.categories.filter(cat => cat.id !== id)
+    });
+  };
+
+  const updateCategory = (id, field, value) => {
+    setData({
+      ...data,
+      categories: data.categories.map(cat => cat.id === id ? { ...cat, [field]: value } : cat)
+    });
+  };
+
+  const addItem = (catId) => {
+    const name = prompt('Название товара:');
+    const price = prompt('Цена:');
+    if (!name || !price) return;
+
+    const updatedCategories = data.categories.map(cat => {
+      if (cat.id === catId) {
+        return {
+          ...cat,
+          items: [...cat.items, { id: Date.now(), name, price, code: 'NEW', image: '' }]
+        };
+      }
+      return cat;
+    });
+    setData({ ...data, categories: updatedCategories });
   };
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
-        <h2 style={{ color: 'var(--accent)', border: 'none', padding: 0 }}>{category.title}</h2>
-        <button className="btn-main" onClick={() => setEditingItem({})}>+ Добавить товар</button>
+    <div className="admin-area" style={{ background: '#080808', minHeight: '100vh', color: '#fff', display: 'flex' }}>
+      {/* Сайдбар */}
+      <div style={{ width: '280px', background: '#000', borderRight: '1px solid var(--border)', padding: '40px 20px', display: 'flex', flexDirection: 'column' }}>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '24px', marginBottom: '40px', color: 'var(--accent)' }}>PINCH & DROP</h2>
+
+        <nav style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {[
+            { id: 'header', label: 'Главный экран', icon: <Menu size={18} /> },
+            { id: 'catalog', label: 'Каталог товаров', icon: <ArrowRight size={18} /> },
+            { id: 'contacts', label: 'Контакты', icon: <Phone size={18} /> },
+            { id: 'requests', label: 'Заявки', icon: <Mail size={18} /> }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '15px', padding: '15px 20px',
+                background: activeTab === tab.id ? 'var(--accent)' : 'transparent',
+                border: 'none', color: activeTab === tab.id ? '#000' : '#888',
+                borderRadius: '12px', textAlign: 'left', fontWeight: '600', transition: 'all 0.3s'
+              }}
+            >
+              {tab.icon} {tab.label}
+            </button>
+          ))}
+        </nav>
+
+        <Link to="/" style={{ marginTop: 'auto', padding: '15px 20px', color: '#555', textDecoration: 'none', fontSize: '14px' }}>
+          ← Выйти на сайт
+        </Link>
       </div>
 
-      {editingItem && (
-        <div className="admin-card" style={{ marginBottom: '40px', border: '1px solid var(--accent)' }}>
-          <h3>{editingItem.id ? 'Редактировать' : 'Новый товар'}</h3>
-          <form onSubmit={saveItem} style={{ marginTop: '20px' }}>
-            <div className="form-group"><label>Название</label><input name="name" className="form-input" defaultValue={editingItem.name} required /></div>
-            <div className="form-group"><label>Артикул</label><input name="code" className="form-input" defaultValue={editingItem.code} /></div>
-            <div className="form-group"><label>Цена</label><input name="price" className="form-input" defaultValue={editingItem.price} /></div>
-            <div className="form-group"><label>URL Изображения</label><input name="image_url" className="form-input" defaultValue={editingItem.image} /></div>
-            <div className="form-group"><label>Описание</label><textarea name="description" className="form-input" defaultValue={editingItem.description} /></div>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button type="submit" className="btn-main">Сохранить</button>
-              <button type="button" className="btn-main" style={{ background: '#333', color: '#fff' }} onClick={() => setEditingItem(null)}>Отмена</button>
-            </div>
-          </form>
-        </div>
-      )}
+      {/* Основной контент */}
+      <div style={{ flex: 1, padding: '60px', overflowY: 'auto' }}>
 
-      <div className="admin-card">
-        <table className="admin-table">
-          <thead><tr><th>Наименование</th><th>Артикул</th><th>Цена</th><th>Действия</th></tr></thead>
-          <tbody>
-            {category.items.map(item => (
-              <tr key={item.id}>
-                <td>{item.name}</td><td>{item.code}</td><td>{item.price} SUM</td>
-                <td>
-                  <button className="action-btn" onClick={() => setEditingItem(item)}>Ред.</button>
-                  <button className="action-btn" style={{ color: '#ff4444' }} onClick={() => deleteItem(item.id)}>Удал.</button>
-                </td>
-              </tr>
+        {/* РЕДАКТИРОВАНИЕ ЗАГОЛОВКОВ */}
+        {activeTab === 'header' && (
+          <div style={{ maxWidth: '800px' }}>
+            <h1 style={{ marginBottom: '40px' }}>Главный экран</h1>
+            <div className="form-group">
+              <label>Название бренда</label>
+              <input
+                value={data.header.brand}
+                onChange={e => updateHeader('brand', e.target.value)}
+                className="form-input"
+              />
+            </div>
+            <div className="form-group" style={{ marginTop: '30px' }}>
+              <label>Слоган</label>
+              <textarea
+                value={data.header.slogan}
+                onChange={e => updateHeader('slogan', e.target.value)}
+                className="form-input"
+                style={{ height: '100px', resize: 'none' }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* РЕДАКТИРОВАНИЕ КАТАЛОГА */}
+        {activeTab === 'catalog' && (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
+              <h1>Управление каталогом</h1>
+              <button onClick={addCategory} className="btn-main" style={{ width: 'auto', padding: '15px 30px', background: '#fff', color: '#000' }}>
+                + СОЗДАТЬ КАТЕГОРИЮ
+              </button>
+            </div>
+
+            {data.categories.map(cat => (
+              <div key={cat.id} style={{ marginBottom: '60px', background: '#000', padding: '40px', borderRadius: '32px', border: '1px solid var(--border)' }}>
+                {/* Хедер категории */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '30px', borderBottom: '1px solid #111', paddingBottom: '30px' }}>
+                  <div>
+                    <label style={{ fontSize: '10px', color: 'var(--accent)', letterSpacing: '2px' }}>ЗАГОЛОВОК КАТЕГОРИИ</label>
+                    <input
+                      value={cat.title}
+                      onChange={e => updateCategory(cat.id, 'title', e.target.value)}
+                      style={{ background: 'transparent', border: 'none', borderBottom: '1px solid #222', color: '#fff', width: '100%', fontSize: '24px', padding: '10px 0' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '10px', color: 'var(--accent)', letterSpacing: '2px' }}>МЕТА-ДАННЫЕ (ОБЪЕМ, ТАРА)</label>
+                    <input
+                      value={cat.meta}
+                      onChange={e => updateCategory(cat.id, 'meta', e.target.value)}
+                      style={{ background: 'transparent', border: 'none', borderBottom: '1px solid #222', color: '#888', width: '100%', fontSize: '16px', padding: '10px 0' }}
+                    />
+                  </div>
+                  <div style={{ gridColumn: 'span 2' }}>
+                    <label style={{ fontSize: '10px', color: 'var(--accent)', letterSpacing: '2px' }}>ОПИСАНИЕ</label>
+                    <input
+                      value={cat.description}
+                      onChange={e => updateCategory(cat.id, 'description', e.target.value)}
+                      style={{ background: 'transparent', border: 'none', borderBottom: '1px solid #222', color: '#555', width: '100%', fontSize: '14px', padding: '10px 0' }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h3 style={{ fontSize: '14px', letterSpacing: '2px' }}>ТОВАРЫ ({cat.items.length})</h3>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button onClick={() => addItem(cat.id)} style={{ padding: '8px 16px', background: 'var(--accent)', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>+ Товар</button>
+                    <button onClick={() => deleteCategory(cat.id)} style={{ padding: '8px 16px', background: 'transparent', border: '1px solid #ff4444', color: '#ff4444', borderRadius: '8px', cursor: 'pointer' }}>Удалить категорию</button>
+                  </div>
+                </div>
+
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ textAlign: 'left', color: '#555', borderBottom: '1px solid var(--border)' }}>
+                      <th style={{ padding: '15px 0' }}>НАЗВАНИЕ</th>
+                      <th>АРТИКУЛ</th>
+                      <th>ЦЕНА</th>
+                      <th style={{ textAlign: 'right' }}>ДЕЙСТВИЯ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cat.items.map(item => (
+                      <tr key={item.id} style={{ borderBottom: '1px solid #111' }}>
+                        <td style={{ padding: '20px 0', fontWeight: '600' }}>{item.name}</td>
+                        <td style={{ color: '#555' }}>{item.code}</td>
+                        <td style={{ color: 'var(--accent)' }}>{item.price} СУМ</td>
+                        <td style={{ textAlign: 'right' }}>
+                          <button
+                            onClick={() => deleteItem(cat.id, item.id)}
+                            style={{ background: 'none', border: 'none', color: '#ff4444', cursor: 'pointer', fontSize: '12px' }}
+                          >
+                            УДАЛИТЬ
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             ))}
-          </tbody>
-        </table>
+          </div>
+        )}
+
+        {/* СПИСОК ЗАЯВОК (ЛОГ) */}
+        {activeTab === 'requests' && (
+          <div>
+            <h1 style={{ marginBottom: '40px' }}>Заявки клиентов</h1>
+            <div style={{ background: '#000', padding: '40px', borderRadius: '24px', border: '1px solid var(--border)', textAlign: 'center' }}>
+              <p style={{ opacity: 0.3 }}>На данный момент новых заявок не поступало.</p>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'contacts' && (
+          <div style={{ maxWidth: '800px' }}>
+            <h1 style={{ marginBottom: '40px' }}>Контакты</h1>
+            <div className="form-group">
+              <label>Телефон</label>
+              <input value={data.contacts.phone} className="form-input" readOnly />
+            </div>
+            <div className="form-group" style={{ marginTop: '30px' }}>
+              <label>Email</label>
+              <input value={data.contacts.email} className="form-input" readOnly />
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );
 };
 
 const MainApp = () => {
-  const [data, setData] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : initialData;
-  });
-  useEffect(() => localStorage.setItem(STORAGE_KEY, JSON.stringify(data)), [data]);
-  return (<Router><Routes><Route path="/" element={<Landing data={data} setData={setData} />} /><Route path="/admin/*" element={<Admin data={data} setData={setData} />} /></Routes></Router>);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Загрузка данных с бэкенда при старте
+  useEffect(() => {
+    fetch('http://localhost:5000/api/data')
+      .then(res => res.json())
+      .then(json => {
+        setData(json);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Ошибка загрузки:', err);
+        setLoading(false);
+      });
+  }, []);
+
+  // Функция для сохранения данных на бэкенд
+  const persistData = (newData) => {
+    setData(newData);
+    fetch('http://localhost:5000/api/data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newData)
+    });
+  };
+
+  if (loading || !data) {
+    return (
+      <div style={{ background: '#000', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', fontFamily: 'var(--font-display)', fontSize: '24px' }}>
+        ЗАГРУЗКА ИММЕРСИВНОГО ОПЫТА...
+      </div>
+    );
+  }
+
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<Landing data={data} setData={persistData} />} />
+        <Route path="/admin/*" element={<Admin data={data} setData={persistData} />} />
+      </Routes>
+    </Router>
+  );
 };
 
 export default MainApp;
-
